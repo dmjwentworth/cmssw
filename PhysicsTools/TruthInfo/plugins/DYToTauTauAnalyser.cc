@@ -2,7 +2,8 @@
 #include <string>
 #include <cmath>
 #include <vector>
-
+#include <algorithm>
+#include "TH1.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
@@ -12,13 +13,10 @@
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 #include "FWCore/Utilities/interface/Exception.h"
 #include "FWCore/Utilities/interface/InputTag.h"
-
 #include "FWCore/ServiceRegistry/interface/Service.h"
-#include "CommonTools/UtilAlgos/interface/TFileService.h"
-#include "TH1.h"
-
-#include "DataFormats/Math/interface/LorentzVector.h"
 #include "FWCore/Framework/interface/global/EDAnalyzer.h"
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "DataFormats/Math/interface/LorentzVector.h"
 #include "SimDataFormats/TruthInfo/interface/Graph.h"
 #include "PhysicsTools/TruthInfo/interface/Branch.h"
 #include "SimDataFormats/TruthInfo/interface/LogicalGraphHitIndex.h"
@@ -44,14 +42,12 @@ void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::Ev
   auto const& graph = event.get(graphToken_);          // truth::Graph
   auto const& hits  = event.get(hitIndexToken_);       // truth::LogicalGraphHitIndex
 
-  for (truth::Particle p : graph.particleViews()) { // loop over root particles
+  for (truth::Particle p : graph.particleViews()) { // loop over all particles
     if (!p.valid()) {
       continue; // skip invalid particles
     }
     
     if (p.pdgId() == 23 && p.hasGen()) { // Z boson at generator level
-      std::cout << "Found Z boson with mass: " << p.momentum().mass() << std::endl;
-      
       const truth::Branch bosonBranch(&graph, p.id());
       
       if (bosonBranch.isSignal()) {
@@ -59,6 +55,15 @@ void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::Ev
         histograms_.at("mTauTauVis")->Fill(bosonBranch.visibleP4().mass());
         math::XYZTLorentzVectorD pMiss = bosonBranch.p4() - bosonBranch.visibleP4();
         histograms_.at("pTmiss")->Fill(pMiss.pt());
+
+        std::vector<truth::Particle> bosonDaughters = p.children();
+        if (bosonDaughters.size() == 2) {
+          for (truth::Particle tau : bosonDaughters) {
+            if (abs(tau.pdgId()) == 15) { // tau lepton
+              const truth::Branch tauBranch(&graph, tau.id());
+            }
+          }
+        }
       }
     }
   }
@@ -69,21 +74,21 @@ void DYToTauTauAnalyser::beginJob() {
   edm::Service<TFileService> fs;
   
   // create histograms
-  histograms_["GenZMass"] = fs->make<TH1F>("GenBosonMass", "m_{Z}", 50, 50, 120);
+  histograms_["GenZMass"] = fs->make<TH1F>("GenBosonMass", "m_{Z}", 50, 60, 120);
   histograms_["GenZMass"]->GetXaxis()->SetTitle("m_{Z} [GeV]");
   histograms_["GenZMass"]->GetYaxis()->SetTitle("Events");
 
-  histograms_["mTauTauVis"] = fs->make<TH1F>("mTauTauVis", "m_{#tau#tau}^{vis}", 50, 0, 250);
+  histograms_["mTauTauVis"] = fs->make<TH1F>("mTauTauVis", "m_{#tau#tau}^{vis}", 50, 0, 300);
   histograms_["mTauTauVis"]->GetXaxis()->SetTitle("m_{#tau#tau}^{vis} [GeV]");
   histograms_["mTauTauVis"]->GetYaxis()->SetTitle("Events");
 
-  histograms_["pTmiss"] = fs->make<TH1F>("pTmiss", "p_{T}^{miss}", 50, 0, 100);
+  histograms_["pTmiss"] = fs->make<TH1F>("pTmiss", "p_{T}^{miss}", 50, 0, 75);
   histograms_["pTmiss"]->GetXaxis()->SetTitle("p_{T}^{miss} [GeV]");
   histograms_["pTmiss"]->GetYaxis()->SetTitle("Events");
 
-  // histograms_["GenDecayMode"] = fs->make<TH1F>("GenDecayMode", "GenDecayMode", 20, -0.5, 19.5);
-  // histograms_["GenDecayMode"]->GetXaxis()->SetTitle("GenDecayMode");
-  // histograms_["GenDecayMode"]->GetYaxis()->SetTitle("Events");
+  histograms_["GenDecayMode"] = fs->make<TH1F>("GenDecayMode", "GenDecayMode", 3, 0, 3);
+  histograms_["GenDecayMode"]->GetXaxis()->SetTitle("GenDecayMode");
+  histograms_["GenDecayMode"]->GetYaxis()->SetTitle("Events");
 }
 
 void DYToTauTauAnalyser::endJob() {
@@ -92,3 +97,7 @@ void DYToTauTauAnalyser::endJob() {
 
 DEFINE_FWK_MODULE(DYToTauTauAnalyser);
 
+std::string getDecayMode(const truth::Branch& tauBranch) {
+  
+  return decayMode;
+}
