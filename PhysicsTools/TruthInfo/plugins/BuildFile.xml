@@ -122,3 +122,7 @@
 <library file="TruthGraphTopologyChecker.cc" name="TruthGraphTopologyCheckerPlugins">
   <flags EDM_PLUGIN="1"/>
 </library>
+
+<library file="DYToTauTauAnalyser.cc" name="DYToTauTauAnalyserPlugins">
+  <flags EDM_PLUGIN="1"/>
+</library>
