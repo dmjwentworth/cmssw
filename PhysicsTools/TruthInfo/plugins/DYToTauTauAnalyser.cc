@@ -2,7 +2,6 @@
 #include <string>
 #include <cmath>
 #include <vector>
-#include <algorithm>
 #include "TH1.h"
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
