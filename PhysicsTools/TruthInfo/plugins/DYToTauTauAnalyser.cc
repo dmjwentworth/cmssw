@@ -21,6 +21,59 @@
 #include "PhysicsTools/TruthInfo/interface/Branch.h"
 #include "SimDataFormats/TruthInfo/interface/LogicalGraphHitIndex.h"
 
+int getTauDecayMode(const truth::Branch tauBranch) {
+  // Work in progress
+  int decayMode = 8; // default to other
+  bool printDebug = false;
+  const truth::Particle tau = tauBranch.root();
+  const std::vector<truth::Particle> tauDaughters = tau.children();
+  for (truth::Particle daughter : tauDaughters) {
+    const uint32_t pdgId = abs(daughter.pdgId());
+    if (pdgId == 16) {
+      continue; // skip neutrinos
+    }
+    else if (pdgId == 15 || pdgId == 22) {
+      decayMode = 1; // tau -> tau + gamma
+      break;
+    }
+    else if (pdgId == 24) {
+      decayMode = 2; // tau -> nu + W
+      break;
+    }
+    else if (pdgId == 211) {
+      decayMode = 3; // tau -> nu + pi
+      break;
+    }
+    else if (pdgId == 213) {
+      decayMode = 4; // tau -> nu + rho
+      break;
+    }
+    else if (pdgId == 321) {
+      decayMode = 5; // tau -> nu + K
+      break;
+    }
+    else if (pdgId == 323) {
+      decayMode = 6; // tau -> nu + K*
+      break;
+    }
+    else if (pdgId == 20213) {
+      decayMode = 7; // tau -> nu + a1
+      break;
+    }
+    else {
+      printDebug = true;
+    }
+  }
+  if (printDebug) {
+    std::cout << "Tau Children pdgIds: ";
+    for (truth::Particle daughter : tauDaughters) {
+      std::cout << daughter.pdgId() << ", ";
+    }
+    std::cout << std::endl;
+  }
+  return decayMode;
+}
+
 class DYToTauTauAnalyser : public edm::global::EDAnalyzer<> {
 public:
   explicit DYToTauTauAnalyser(edm::ParameterSet const& cfg)
@@ -61,6 +114,8 @@ void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::Ev
           for (truth::Particle tau : bosonDaughters) {
             if (abs(tau.pdgId()) == 15) { // tau lepton
               const truth::Branch tauBranch(&graph, tau.id());
+              int decayMode = getTauDecayMode(tauBranch);
+              histograms_.at("TauDaughters")->Fill(decayMode);
             }
           }
         }
@@ -86,9 +141,16 @@ void DYToTauTauAnalyser::beginJob() {
   histograms_["pTmiss"]->GetXaxis()->SetTitle("p_{T}^{miss} [GeV]");
   histograms_["pTmiss"]->GetYaxis()->SetTitle("Events");
 
-  histograms_["GenDecayMode"] = fs->make<TH1F>("GenDecayMode", "GenDecayMode", 3, 0, 3);
-  histograms_["GenDecayMode"]->GetXaxis()->SetTitle("GenDecayMode");
-  histograms_["GenDecayMode"]->GetYaxis()->SetTitle("Events");
+  histograms_["TauDaughters"] = fs->make<TH1F>("TauDaughters", "Direct #tau descendants", 8, 0.5, 8.5);
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(1, "#tau^{#pm} + #gamma");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(2, "#nu + W^{#pm}");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(3, "#nu + #pi^{#pm}");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(4, "#nu + #rho^{#pm}");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(5, "#nu + K^{#pm}");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(6, "#nu + K*^{#pm}");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(7, "#nu + a_{1}^{#pm}");
+  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(8, "Other");
+  histograms_["TauDaughters"]->GetYaxis()->SetTitle("Events");
 }
 
 void DYToTauTauAnalyser::endJob() {
@@ -97,7 +159,3 @@ void DYToTauTauAnalyser::endJob() {
 
 DEFINE_FWK_MODULE(DYToTauTauAnalyser);
 
-std::string getDecayMode(const truth::Branch& tauBranch) {
-  
-  return decayMode;
-}
