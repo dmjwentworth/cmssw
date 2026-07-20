@@ -57,9 +57,9 @@ def submit_to_condor(shell_script_path):
     with open(condor_script_path, "w") as f:
         f.write("getenv = true\n")
         f.write(f"executable = {shell_script}\n")
-        f.write("output = $(ClusterId).$(ProcId).out\n")
-        f.write("error = $(ClusterId).$(ProcId).err\n")
-        f.write("log = $(ClusterId).$(ProcId).log\n")
+        f.write(f"output = {shell_script[:-3]}.$(ClusterId).out\n")
+        f.write(f"error = {shell_script[:-3]}.$(ClusterId).err\n")
+        f.write(f"log = {shell_script[:-3]}.$(ClusterId).log\n")
         f.write(f"request_cpus = {args.nThreads}\n")
         f.write(f"request_disk = {int(args.nEvents * 5)} M\n")  # 5MB per event
         f.write("+MaxRuntime = 144000\n")
