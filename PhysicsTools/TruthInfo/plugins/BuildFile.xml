@@ -126,3 +126,7 @@
 <library file="DYToTauTauAnalyser.cc" name="DYToTauTauAnalyserPlugins">
   <flags EDM_PLUGIN="1"/>
 </library>
+
+<library file="ZMMRecAnalyser.cc" name="ZMMRecAnalyserPlugins">
+  <flags EDM_PLUGIN="1"/>
+</library>
