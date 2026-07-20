@@ -10,7 +10,7 @@ SAMPLE_KEY = {
     "ZMM": "34050.88",
     "H125_diphoton": "34052.88",
     "VBFHZZ4Nu": "34131.88",
-    "TenTau": "34287.88",
+    "TenTau": "34122.88",
     "TenTauPU": "34322.88",
     "SingleTop": "34999.88",
     "TTbarPowheg": "34998.88",
