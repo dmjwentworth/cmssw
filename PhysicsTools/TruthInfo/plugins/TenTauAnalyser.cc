@@ -30,9 +30,9 @@ int getTauDecayMode(const truth::Branch tauBranch) {
   return decayMode;
 }
 
-class DYToTauTauAnalyser : public edm::global::EDAnalyzer<> {
+class TenTauAnalyser : public edm::global::EDAnalyzer<> {
 public:
-  explicit DYToTauTauAnalyser(edm::ParameterSet const& cfg)
+  explicit TenTauAnalyser(edm::ParameterSet const& cfg)
     : graphToken_(consumes<truth::Graph>(cfg.getParameter<edm::InputTag>("src"))),
       hitIndexToken_(consumes<truth::LogicalGraphHitIndex>(cfg.getParameter<edm::InputTag>("hitIndex"))) {}
 
@@ -47,7 +47,7 @@ private:
   std::map<std::string, TH1F*> histograms_;
 };
 
-void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventSetup const&) const {
+void TenTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventSetup const&) const {
   auto const& graph = event.get(graphToken_);          // truth::Graph
   auto const& hits  = event.get(hitIndexToken_);       // truth::LogicalGraphHitIndex
 
@@ -62,7 +62,7 @@ void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::Ev
   }
 }
 
-void DYToTauTauAnalyser::beginJob() {
+void TenTauAnalyser::beginJob() {
   // register to the TFileService
   edm::Service<TFileService> fs;
   
@@ -70,9 +70,9 @@ void DYToTauTauAnalyser::beginJob() {
  
 }
 
-void DYToTauTauAnalyser::endJob() {
+void TenTauAnalyser::endJob() {
   std::cout << "Done!" << std::endl;
 }
 
-DEFINE_FWK_MODULE(DYToTauTauAnalyser);
+DEFINE_FWK_MODULE(TenTauAnalyser);
 
