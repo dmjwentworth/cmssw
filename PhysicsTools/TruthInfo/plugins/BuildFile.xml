@@ -130,3 +130,8 @@
 <library file="ZMMRecAnalyser.cc" name="ZMMRecAnalyserPlugins">
   <flags EDM_PLUGIN="1"/>
 </library>
+
+<library file="TenTauAnalyser.cc" name="TenTauAnalyserPlugins">
+  <flags EDM_PLUGIN="1"/>
+</library>
+

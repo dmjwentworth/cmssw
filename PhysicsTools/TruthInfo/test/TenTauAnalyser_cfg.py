@@ -13,7 +13,7 @@ process.maxEvents = cms.untracked.PSet(
 process.source = cms.Source(
     "PoolSource",
     fileNames=cms.untracked.vstring(
-        "file:output/samples/34122.88_TenTau_15_500_Eta3p1+Run4D120_enableTruth/step3.root"
+        "file:/eos/user/d/dwentwor/truth-graph/output/samples/34122.88_TenTau_15_500_Eta3p1+Run4D120_enableTruth/step3.root"
     )
 )
 

@@ -22,11 +22,24 @@
 
 int getTauDecayMode(const truth::Branch tauBranch) {
   // Work in progress
-  int decayMode = 8; // default to other
+  int decayMode = 0; // default 
   bool printDebug = false;
   const truth::Particle tau = tauBranch.root();
   const std::vector<truth::Particle> tauDaughters = tau.children();
+  const std::vector<truth::Particle> tauDescendants = tauBranch.stableLeaves();
   
+	std::cout << "Children: ";
+	for (truth::Particle daughter : tauDaughters) {
+	  std::cout << daughter.pdgId() << " ";
+	}
+	std::cout << std::endl;
+
+	std::cout << "Descendants: ";
+	for (truth::Particle descendant : tauDescendants) {
+	  std::cout << descendant.pdgId() << " ";
+	}
+	std::cout << "\n" << std::endl;
+
   return decayMode;
 }
 
@@ -56,8 +69,10 @@ void TenTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventS
       continue; // skip invalid particles
     }
     
-    if (p.pdgId() == 23 && p.hasGen()) { // Z boson at generator level
-      
+    if (std::abs(p.pdgId()) == 15) { // tau leptons
+      const truth::Branch tauBranch(&graph, p.id());
+      histograms_.at("mTauVis")->Fill(tauBranch.visibleP4().mass());
+      const int decayMode = getTauDecayMode(tauBranch);
     }
   }
 }
@@ -67,7 +82,9 @@ void TenTauAnalyser::beginJob() {
   edm::Service<TFileService> fs;
   
   // create histograms
- 
+  histograms_["mTauVis"] = fs->make<TH1F>("mTauVis", "Visible Mass of Tau Lepton", 50, 0, 200);
+  histograms_["mTauVis"]->GetXaxis()->SetTitle("m_{#tau}^{vis} [GeV]");
+  histograms_["mTauVis"]->GetYaxis()->SetTitle("Events");
 }
 
 void TenTauAnalyser::endJob() {
