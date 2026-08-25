@@ -13,13 +13,13 @@ process.maxEvents = cms.untracked.PSet(
 process.source = cms.Source(
     "PoolSource",
     fileNames=cms.untracked.vstring(
-        "file:/eos/user/d/dwentwor/truth-graph/output/samples/34045.88_DYtoTauTau_M_50_14TeV+Run4D120_enableTruth/step3.root"
+        "file:/eos/user/d/dwentwor/truth-graph/samples/34045.88_DYtoTauTau_M_50_14TeV+Run4D120_enableTruth/step3.root"
     )
 )
 
 process.TFileService = cms.Service(
     "TFileService",
-    fileName = cms.string("/eos/user/d/dwentwor/truth-graph/output/task_1_plots/DYToTauTau.root")
+    fileName = cms.string("/eos/user/d/dwentwor/truth-graph/investigation/task_1_plots/DYToTauTau.root")
 )
 
 process.truthGraphAnalyser = cms.EDAnalyzer(

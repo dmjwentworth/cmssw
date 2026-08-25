@@ -22,12 +22,12 @@
 #include "SimDataFormats/TruthInfo/interface/LogicalGraphHitIndex.h"
 
 const std::array<uint32_t, 10> DONOTEXPAND = {
-  11, // electron
-  12, // electron neutrino
-  13, // muon
-  14, // muon neutrino
-  16, // tau neutrino
-  22, // photon
+  11,  // electron
+  12,  // electron neutrino
+  13,  // muon
+  14,  // muon neutrino
+  16,  // tau neutrino
+  22,  // photon
   111, // pi0
   130, // K0L
   211, // pi
@@ -86,9 +86,10 @@ std::vector<int32_t> getExpandedPdgIds(const std::vector<truth::Particle>& parti
   return pdgIds;
 }
 
-int getTauDecayMode(const truth::Particle& tau) {
+int getTauDecayMode(const truth::Branch& tauBranch) {
   int decayMode{ 7 }; // default to other
   bool printDebug{ false };
+  const truth::Particle tau = tauBranch.root();
   const std::vector<truth::Particle> tauDaughters = tau.children();
   const std::vector<int32_t> tauDescendants = getExpandedPdgIds(tauDaughters);
 
@@ -115,14 +116,20 @@ int getTauDecayMode(const truth::Particle& tau) {
   else printDebug = true; // other
 
   if (printDebug) {
-    std::cout << "Before expansion: ";
+    std::cout << "Direct tau children: ";
     for (const truth::Particle& daughter : tauDaughters) {
       std::cout << daughter.pdgId() << ", ";
     }
     std::cout << std::endl;
-    std::cout << "After expansion: ";
+    std::cout << "Expanded with my method: ";
     for (const int32_t signedPdgId : tauDescendants) {
       std::cout << signedPdgId << ", ";
+    }
+    std::cout << std::endl;
+    std::cout << "Stable leaves (gen only): ";
+    for (const truth::Particle& leaf : tauBranch.stableLeaves()) {
+      if (!leaf.hasGen()) continue;
+      std::cout << leaf.pdgId() << ", ";
     }
     std::cout << "\n" << std::endl;
   }
@@ -157,7 +164,8 @@ void TenTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventS
     }
     
     if (std::abs(p.pdgId()) == 15) { // tau leptons
-      const int decayMode = getTauDecayMode(p);
+      const truth::Branch tauBranch(&graph, p.id());
+      const int decayMode = getTauDecayMode(tauBranch);
       histograms_.at("tauDecay")->Fill(decayMode);
     }
   }

@@ -54,6 +54,9 @@ void ZMMRecAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventS
         const truth::Particle muon1 = bosonDaughters[0];
         const truth::Particle muon2 = bosonDaughters[1];
         math::XYZTLorentzVectorD genP4 = muon1.momentum() + muon2.momentum();
+        std::span<const truth::LogicalGraphHitIndex::Hit> muPlusHits, muMinusHits;
+        float muPlusSimEnergy{0.0}, muMinusSimEnergy{0.0};
+        float muPlusHitEnergy{0.0}, muMinusHitEnergy{0.0};
 
         // filling histograms for generator level Z mass
         if (muon1.pdgId() == 13 && muon2.pdgId() == -13) { // muon1 is mu- and muon2 is mu+
@@ -62,6 +65,10 @@ void ZMMRecAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventS
           histograms_.at("GenMu2Pt")->Fill(muon2.momentum().pt());
           histograms_.at("GenMu1Eta")->Fill(muon1.momentum().eta());
           histograms_.at("GenMu2Eta")->Fill(muon2.momentum().eta());
+          muPlusSimEnergy = muon2.momentum().energy();
+          muMinusSimEnergy = muon1.momentum().energy();
+          muPlusHits = hits.subgraphHits(truth::HitChannel::Muon, muon2.id());
+          muMinusHits = hits.subgraphHits(truth::HitChannel::Muon, muon1.id());
         }
         else if (muon1.pdgId() == -13 && muon2.pdgId() == 13) { // muon1 is mu+ and muon2 is mu-
           histograms_.at("GenZMass")->Fill(genP4.mass());
@@ -69,18 +76,21 @@ void ZMMRecAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventS
           histograms_.at("GenMu2Pt")->Fill(muon1.momentum().pt());
           histograms_.at("GenMu1Eta")->Fill(muon2.momentum().eta());
           histograms_.at("GenMu2Eta")->Fill(muon1.momentum().eta());
+          muPlusSimEnergy = muon1.momentum().energy();
+          muMinusSimEnergy = muon2.momentum().energy();
+          muPlusHits = hits.subgraphHits(truth::HitChannel::Muon, muon1.id());
+          muMinusHits = hits.subgraphHits(truth::HitChannel::Muon, muon2.id());
         }
-        // matching reco muons to gen muons and filling histograms for reconstructed Z mass
-        // const std::vector<uint32_t> candidateRoots = {muon1.id(), muon2.id()};
-        // truth::BranchHitAssociator muonAssociator(hits,
-        // 																				  candidateRoots,
-        // 																	 				truth::Metric::SharedHits,
-        // 																	 				truth::HitChannel::Muon);
-        
-        // for (uint32_t pid = 0; pid < hits.nParticles(); ++pid) {
-        // 	std::span<const truth::LogicalGraphHitIndex::Hit> muonHits =
-        // 		hits.subgraphHits(truth::HitChannel::Muon, pid); 	
-        // }
+        for (const auto& hit : muPlusHits) {
+            muPlusHitEnergy += hit.energy;
+        }
+        for (const auto& hit : muMinusHits) {
+            muMinusHitEnergy += hit.energy;
+        }
+        float muPlusDepositRatio = muPlusHitEnergy / muPlusSimEnergy;
+        float muMinusDepositRatio = muMinusHitEnergy / muMinusSimEnergy;
+        histograms_.at("Mu1DepositRatio")->Fill(muMinusDepositRatio);
+        histograms_.at("Mu2DepositRatio")->Fill(muPlusDepositRatio);
       }
     }
   }  
@@ -111,9 +121,13 @@ void ZMMRecAnalyser::beginJob() {
   histograms_["GenMu2Eta"]->GetXaxis()->SetTitle("#eta");
   histograms_["GenMu2Eta"]->GetYaxis()->SetTitle("Events");
 
-	// histograms_["RecZMass"] = fs->make<TH1F>("RecBosonMass", "Reconstructed m_{#mu#mu}", 50, 60, 120);
-	// histograms_["RecZMass"]->GetXaxis()->SetTitle("m_{#mu#mu} [GeV]");
-	// histograms_["RecZMass"]->GetYaxis()->SetTitle("Events");
+	histograms_["Mu1DepositRatio"] = fs->make<TH1F>("Mu1DepositRatio", "Hit energy / sim energy for #mu^{-}", 75, 0, 0.000005);
+  histograms_["Mu1DepositRatio"]->GetXaxis()->SetTitle("Hit energy / sim energy");
+  histograms_["Mu1DepositRatio"]->GetYaxis()->SetTitle("Events");
+
+  histograms_["Mu2DepositRatio"] = fs->make<TH1F>("Mu2DepositRatio", "Hit energy / sim energy for #mu^{+}", 75, 0, 0.000005);
+  histograms_["Mu2DepositRatio"]->GetXaxis()->SetTitle("Hit energy / sim energy");
+  histograms_["Mu2DepositRatio"]->GetYaxis()->SetTitle("Events");
 }
 
 void ZMMRecAnalyser::endJob() {
