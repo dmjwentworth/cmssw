@@ -20,64 +20,15 @@
 #include "PhysicsTools/TruthInfo/interface/Branch.h"
 #include "SimDataFormats/TruthInfo/interface/LogicalGraphHitIndex.h"
 
-int getTauDecayMode(const truth::Branch tauBranch) {
-  // Work in progress
-  int decayMode = 8; // default to other
-  bool printDebug = false;
-  const truth::Particle tau = tauBranch.root();
-  const std::vector<truth::Particle> tauDaughters = tau.children();
-  for (truth::Particle daughter : tauDaughters) {
-    const uint32_t pdgId = abs(daughter.pdgId());
-    if (pdgId == 16) {
-      continue; // skip neutrinos
-    }
-    else if (pdgId == 15 || pdgId == 22) {
-      decayMode = 1; // tau -> tau + gamma
-      break;
-    }
-    else if (pdgId == 24) {
-      decayMode = 2; // tau -> nu + W
-      break;
-    }
-    else if (pdgId == 211) {
-      decayMode = 3; // tau -> nu + pi
-      break;
-    }
-    else if (pdgId == 213) {
-      decayMode = 4; // tau -> nu + rho
-      break;
-    }
-    else if (pdgId == 321) {
-      decayMode = 5; // tau -> nu + K
-      break;
-    }
-    else if (pdgId == 323) {
-      decayMode = 6; // tau -> nu + K*
-      break;
-    }
-    else if (pdgId == 20213) {
-      decayMode = 7; // tau -> nu + a1
-      break;
-    }
-    else {
-      printDebug = true;
-    }
-  }
-  if (printDebug) {
-    std::cout << "Tau Children pdgIds: ";
-    for (truth::Particle daughter : tauDaughters) {
-      std::cout << daughter.pdgId() << ", ";
-    }
-    std::cout << std::endl;
-  }
-  return decayMode;
-}
-
 class DYToTauTauAnalyser : public edm::global::EDAnalyzer<> {
 public:
   explicit DYToTauTauAnalyser(edm::ParameterSet const& cfg)
     : graphToken_(consumes<truth::Graph>(cfg.getParameter<edm::InputTag>("src"))),
       hitIndexToken_(consumes<truth::LogicalGraphHitIndex>(cfg.getParameter<edm::InputTag>("hitIndex"))) {}
+
+  std::vector<truth::Particle> expandIntermediates(const std::vector<truth::Particle>& particles) const;
+  std::vector<int32_t> getExpandedPdgIds(const std::vector<truth::Particle>& particles) const;
+  int getTauDecayMode(const truth::Branch& tauBranch) const;
 
 private:
   void analyze(edm::StreamID, edm::Event const& event, edm::EventSetup const&) const override;
@@ -88,7 +39,122 @@ private:
   const edm::EDGetTokenT<truth::LogicalGraphHitIndex> hitIndexToken_;
 
   std::map<std::string, TH1F*> histograms_;
+  static const std::array<uint32_t, 10> doNotExpand_;
 };
+
+const std::array<uint32_t, 10> DYToTauTauAnalyser::doNotExpand_ = {
+  11,  // electron
+  12,  // electron neutrino
+  13,  // muon
+  14,  // muon neutrino
+  16,  // tau neutrino
+  22,  // photon
+  111, // pi0
+  130, // K0L
+  211, // pi
+  321, // K
+};
+
+std::vector<truth::Particle> DYToTauTauAnalyser::expandIntermediates(const std::vector<truth::Particle>& particles) const {
+  std::vector<truth::Particle> expanded;
+
+  for (const truth::Particle& p : particles) {
+    uint32_t pdgId = std::abs(p.pdgId());
+    if (std::find(doNotExpand_.begin(), doNotExpand_.end(), pdgId) != doNotExpand_.end()) {
+      expanded.push_back(p);
+    }
+    else {
+      const std::vector<truth::Particle> kids = p.children();
+      if (kids.empty()) {
+        std::cout << "Warning: particle with pdgId " << p.pdgId()
+                  << " has no children, but is not in doNotExpand_ list." << std::endl;
+        expanded.push_back(p);
+      }
+      else {
+        for (const truth::Particle& kid : kids) {
+          if (kid.hasGen()) {
+            expanded.push_back(kid);
+          }
+        }
+      }
+    }
+  }
+
+  return expanded;
+}
+
+std::vector<int32_t> DYToTauTauAnalyser::getExpandedPdgIds(const std::vector<truth::Particle>& particles) const {
+  std::vector<truth::Particle> temp = particles;
+
+  while (true) {
+    std::size_t n_checked = 0;
+    for (const truth::Particle& p : temp) {
+      uint32_t pdgId = std::abs(p.pdgId());
+      const std::vector<truth::Particle> kids = p.children();
+      if ((std::find(doNotExpand_.begin(), doNotExpand_.end(), pdgId) != doNotExpand_.end())
+           || kids.empty()) {
+        n_checked++;
+      }
+      else {
+        n_checked = 0;
+        temp = expandIntermediates(temp);
+        break;
+      }
+    }
+    if (n_checked == temp.size()) break;
+  }
+
+  std::vector<int32_t> pdgIds;
+  for (const truth::Particle& p : temp) {
+    pdgIds.push_back(p.pdgId());
+  }
+  return pdgIds;
+}
+
+int DYToTauTauAnalyser::getTauDecayMode(const truth::Branch& tauBranch) const {
+  int decayMode{ 7 }; // default to other
+  bool printDebug{ false };
+  const truth::Particle tau = tauBranch.root();
+  const std::vector<truth::Particle> tauDaughters = tau.children();
+  const std::vector<int32_t> tauDescendants = getExpandedPdgIds(tauDaughters);
+
+  int nEle{0}, nMu{0}, nPi0{0}, nK0{0}, nPr{0};
+  for (const int32_t signedPdgId : tauDescendants) {
+    uint32_t pdgId = std::abs(signedPdgId);
+    if (pdgId == 22 || pdgId == 12 || pdgId == 14 || pdgId == 16) continue; // skip photons and neutrinos
+    else if (pdgId == 11) nEle++;
+    else if (pdgId == 13) nMu++;
+    else if (pdgId == 111) nPi0++;
+    else if (pdgId == 130 || pdgId == 310) nK0++;
+    else if (pdgId == 211 || pdgId == 321) nPr++;
+    else printDebug = true;
+  }
+
+  const std::array<int, 5> decayModeArray = { nEle, nMu, nPi0, nK0, nPr };
+  if (decayModeArray == std::array<int, 5>{1, 0, 0, 0, 0}) decayMode = 0; // tau -> e
+  else if (decayModeArray == std::array<int, 5>{0, 1, 0, 0, 0}) decayMode = 1; // tau -> mu
+  else if (decayModeArray == std::array<int, 5>{0, 0, 0, 0, 1}) decayMode = 2; // tau -> h
+  else if (decayModeArray == std::array<int, 5>{0, 0, 1, 0, 1}) decayMode = 3; // tau -> h pi0
+  else if (decayModeArray == std::array<int, 5>{0, 0, 2, 0, 1}) decayMode = 4; // tau -> h pi0 pi0
+  else if (decayModeArray == std::array<int, 5>{0, 0, 0, 0, 3}) decayMode = 5; // tau -> h h h
+  else if (decayModeArray == std::array<int, 5>{0, 0, 1, 0, 3}) decayMode = 6; // tau -> h h h pi0
+  else printDebug = true; // other
+
+  if (printDebug) {
+    std::cout << "\nDirect tau children: ";
+    for (const truth::Particle& daughter : tauDaughters) {
+      std::cout << daughter.pdgId() << ", ";
+    }
+    std::cout << std::endl;
+    std::cout << "Expanded with my method: ";
+    for (const int32_t signedPdgId : tauDescendants) {
+      std::cout << signedPdgId << ", ";
+    }
+    std::cout << std::endl;
+  }
+
+  return decayMode;
+}
 
 void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::EventSetup const&) const {
   auto const& graph = event.get(graphToken_);          // truth::Graph
@@ -114,7 +180,7 @@ void DYToTauTauAnalyser::analyze(edm::StreamID, edm::Event const& event, edm::Ev
             if (abs(tau.pdgId()) == 15) { // tau lepton
               const truth::Branch tauBranch(&graph, tau.id());
               int decayMode = getTauDecayMode(tauBranch);
-              histograms_.at("TauDaughters")->Fill(decayMode);
+              histograms_.at("tauDecay")->Fill(decayMode);
             }
           }
         }
@@ -140,16 +206,16 @@ void DYToTauTauAnalyser::beginJob() {
   histograms_["pTmiss"]->GetXaxis()->SetTitle("p_{T}^{miss} [GeV]");
   histograms_["pTmiss"]->GetYaxis()->SetTitle("Events");
 
-  histograms_["TauDaughters"] = fs->make<TH1F>("TauDaughters", "Direct #tau descendants", 8, 0.5, 8.5);
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(1, "#tau^{#pm} + #gamma");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(2, "#nu + W^{#pm}");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(3, "#nu + #pi^{#pm}");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(4, "#nu + #rho^{#pm}");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(5, "#nu + K^{#pm}");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(6, "#nu + K*^{#pm}");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(7, "#nu + a_{1}^{#pm}");
-  histograms_["TauDaughters"]->GetXaxis()->SetBinLabel(8, "Other");
-  histograms_["TauDaughters"]->GetYaxis()->SetTitle("Events");
+  histograms_["tauDecay"] = fs->make<TH1F>("tauDecay", "Tau Decay Modes", 8, -0.5, 7.5);
+	histograms_["tauDecay"]->GetYaxis()->SetTitle("Events");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(1, "e^{#pm}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(2, "#mu^{#pm}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(3, "h^{#pm}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(4, "h^{#pm}#pi^{0}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(5, "h^{#pm}#pi^{0}#pi^{0}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(6, "h^{#mp}h^{#pm}h^{#pm}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(7, "h^{#mp}h^{#pm}h^{#pm}#pi^{0}");
+	histograms_["tauDecay"]->GetXaxis()->SetBinLabel(8, "Other");
 }
 
 void DYToTauTauAnalyser::endJob() {

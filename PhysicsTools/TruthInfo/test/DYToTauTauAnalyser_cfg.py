@@ -19,7 +19,7 @@ process.source = cms.Source(
 
 process.TFileService = cms.Service(
     "TFileService",
-    fileName = cms.string("/eos/user/d/dwentwor/truth-graph/investigation/task_1_plots/DYToTauTau.root")
+    fileName = cms.string("/eos/user/d/dwentwor/truth-graph/investigation/task_2_plots/DYToTauTau.root")
 )
 
 process.truthGraphAnalyser = cms.EDAnalyzer(
