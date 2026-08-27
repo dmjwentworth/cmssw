@@ -51,6 +51,8 @@
 <use name="DQMServices/Core"/>
 <use name="SimDataFormats/Associations"/>
 
+<use name="DataFormats/TauReco"/>
+
 <library file="TruthGraphProducer.cc" name="TruthGraphProducerPlugins">
   <flags EDM_PLUGIN="1"/>
 </library>

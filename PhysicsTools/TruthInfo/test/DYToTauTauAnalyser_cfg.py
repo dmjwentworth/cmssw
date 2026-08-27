@@ -26,6 +26,7 @@ process.truthGraphAnalyser = cms.EDAnalyzer(
     "DYToTauTauAnalyser",
     src = cms.InputTag("truthLogicalGraphProducer"),
     hitIndex = cms.InputTag("truthLogicalGraphHitIndexProducer"),
+    recoTauCollection = cms.InputTag("hpsPFTauProducer"),
 )
 
 process.truthanalyzer = cms.Path(
